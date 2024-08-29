@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-#-*- coding: utf-8 -*-
-"""
-@author: huangjunjie
-@file: sigat.py
-@time: 2018/12/10
-"""
-
 import networkx as nx
 import os
 import time
@@ -25,12 +17,6 @@ from common import DATASET_NUM_DIC
 #
 from fea_extra import FeaExtra, FeaMoreExtra
 
-OUTPUT_DIR = './embeddings/sigat'
-if not os.path.exists('embeddings'):
-    os.mkdir('embeddings')
-    if not os.path.exists(OUTPUT_DIR):
-        os.mkdir(OUTPUT_DIR)
-
 
 
 # Training settings
@@ -47,7 +33,7 @@ parser.add_argument('--batch_size', type=int, default=500, help='Batch Size')
 parser.add_argument('--dropout', type=float, default=0.0, help='Dropout k')
 parser.add_argument('--k', default=1, help='Folder k')
 parser.add_argument('--added_info', default= None,type = str, help='changes made')
-
+parser.add_argument('--output_dir', default= None,type = str)
 args = parser.parse_args()
 
 random.seed(args.seed)
@@ -68,6 +54,14 @@ EPOCHS = args.epochs
 DROUPOUT = args.dropout
 K = args.k
 print(DEVICES)
+
+
+
+OUTPUT_DIR = args.output_dir
+if not os.path.exists('embeddings'):
+    os.mkdir('embeddings')
+    if not os.path.exists(OUTPUT_DIR):
+        os.mkdir(OUTPUT_DIR)
 
 
 class Encoder(nn.Module):
@@ -294,11 +288,11 @@ def read_emb(num_nodes, fpath):
                 embeddings[int(node)] = np.array(emb)
     return embeddings
 
-def run( added_info, dataset='bitcoin_alpha', k=2):
+def run( added_info, dataset, k=2):
     num_nodes = DATASET_NUM_DIC[dataset] + 3
 
     # adj_lists1, adj_lists2, adj_lists3 = load_data(k, dataset)
-    filename = './experiment-data/{}-train-{}.edgelist'.format(dataset, k)
+    filename = './experiment-data/{}/{}-train-{}.edgelist'.format(dataset, dataset, k)
     adj_lists1, adj_lists1_1, adj_lists1_2, adj_lists2, adj_lists2_1, adj_lists2_2, adj_lists3 = load_data2(filename, add_public_foe=False)
     print(k, dataset, 'data load!')
     features = nn.Embedding(num_nodes, NODE_FEAT_SIZE)
@@ -361,12 +355,10 @@ def run( added_info, dataset='bitcoin_alpha', k=2):
                 additional_features = fea_model.features_part3(node, neighbor, betweenness_centrality, closeness_centrality, alpha_centrality, clustering_coefficient)
                 for index, feature in enumerate(additional_features):
                     adj_additions3[index][node].add(feature)   
-        # 54
-        adj_lists = adj_additions3 
-    else:
-        # 38
-        adj_lists = adj_lists + adj_additions1 + adj_additions2
 
+        adj_lists = adj_lists + adj_additions3 +adj_additions1+adj_additions2 
+    else:
+        adj_lists = adj_lists +adj_additions1 +adj_additions2 
     print(len(adj_lists), 'motifs')
 
     def func(adj_list):
@@ -409,11 +401,12 @@ def run( added_info, dataset='bitcoin_alpha', k=2):
                 embed = model.forward(values.tolist())
                 embed = embed.data.cpu().numpy()
                 all_embedding[begin_index: end_index] = embed
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
             if added_info:
                 fpath = os.path.join(OUTPUT_DIR, 'embedding-{}-{}-{}-{}.npy'.format(dataset, k, str(epoch), added_info))
             else:
                 fpath = os.path.join(OUTPUT_DIR, 'embedding-{}-{}-{}.npy'.format(dataset, k, str(epoch)))
-                
+            # os.makedirs(fpath, exist_ok=True)   
             np.save(fpath, all_embedding)
             model.train()
 

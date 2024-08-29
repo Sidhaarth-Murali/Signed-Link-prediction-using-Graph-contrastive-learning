@@ -61,7 +61,7 @@ SIDE_MODEL_PATH_DIC = {
 def read_train_test_data(dataset, k):
     train_X = []
     train_y = []
-    with open('./experiment-data/{}-train-{}.edgelist'.format(dataset, k)) as f:
+    with open('./experiment-data/{}/{}-train-{}.edgelist'.format(dataset, dataset, k)) as f:
         for line in f:
             i, j, flag = line.split()
             i = int(i)
@@ -72,7 +72,7 @@ def read_train_test_data(dataset, k):
             train_y.append(flag)
     test_X = []
     test_y = []
-    with open('./experiment-data/{}-test-{}.edgelist'.format(dataset, k)) as f:
+    with open('./experiment-data/{}/{}-test-{}.edgelist'.format(dataset, dataset, k)) as f:
         for line in f:
             i, j, flag = line.split()
             i = int(i)
@@ -86,31 +86,42 @@ def read_train_test_data(dataset, k):
 
 
 def common_logistic(dataset, k, embeddings, RESULTS_DIR, model):
-    train_X, train_y, test_X, test_y  = read_train_test_data(dataset, k)
-
+    train_X, train_y, test_X, test_y = read_train_test_data(dataset, k)
     train_X1 = []
+    train_y1 = []
     test_X1 = []
+    test_y1 = []
 
-    for i, j in train_X:
-        train_X1.append(np.concatenate([embeddings[i], embeddings[j]]))
+    max_index = embeddings.shape[0] - 1  # Calculate the max index based on embeddings
 
-    for i, j in test_X:
-        test_X1.append(np.concatenate([embeddings[i], embeddings[j]]))
+    for (i, j), label in zip(train_X, train_y):
+        if i > max_index or j > max_index:
+            continue  # Skip this entry if either index exceeds embeddings.shape[0]
+        else:
+            train_X1.append(np.concatenate([embeddings[i], embeddings[j]]))
+            train_y1.append(label)
+
+    for (i, j), label in zip(test_X, test_y):
+        if i > max_index or j > max_index:
+            continue  # Skip this entry if either index exceeds embeddings.shape[0]
+        else:
+            test_X1.append(np.concatenate([embeddings[i], embeddings[j]]))
+            test_y1.append(label)
 
 
     logistic_function = linear_model.LogisticRegression()
-    logistic_function.fit(train_X1, train_y)
+    logistic_function.fit(train_X1, train_y1)
     pred = logistic_function.predict(test_X1)
     pred_p = logistic_function.predict_proba(test_X1)
 
 
-    pos_ratio =  np.sum(test_y) / test_y.shape[0]
-    accuracy =  metrics.accuracy_score(test_y, pred)
-    f1_score0 =  metrics.f1_score(test_y, pred)
-    f1_score1 =  metrics.f1_score(test_y, pred, average='macro')
-    f1_score2 =  metrics.f1_score(test_y, pred, average='micro')
+    pos_ratio =  np.sum(test_y1) / len(test_y1)
+    accuracy =  metrics.accuracy_score(test_y1, pred)
+    f1_score0 =  metrics.f1_score(test_y1, pred)
+    f1_score1 =  metrics.f1_score(test_y1, pred, average='macro')
+    f1_score2 =  metrics.f1_score(test_y1, pred, average='micro')
 
-    auc_score =  metrics.roc_auc_score(test_y, pred_p[:, 1])
+    auc_score =  metrics.roc_auc_score(test_y1, pred_p[:, 1])
     print("pos_ratio:", pos_ratio)
     print('accuracy:', accuracy)
     print("f1_score:", f1_score0)
@@ -315,15 +326,19 @@ def logistic_embedding8(k=1, dataset='epinions'):
     return pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score
 
 
-def logistic_embedding9(RESULT_DIR, added_info, k=1, dataset='epinions', epoch=10, dirname='sigat'):
+def logistic_embedding9(RESULT_DIR, num_aggs, added_info, k=1, dataset='epinions', epoch=10, dirname='sigat'):
     """use sigat embedding to train logistic function
     Returns:
         pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score
     """
+
     if added_info:
         print(added_info)
-        filename = os.path.join('embeddings', dirname, 'embedding-{}-{}-{}-{}.npy'.format(dataset, k, epoch, added_info))
-    # filename = os.path.join('embeddings', dirname, 'embedding-{}-{}-{}.npy'.format(dataset, k, epoch))
+        ## you gotta change b_otc manually
+        filename = os.path.join('embeddings', dirname,"b_otc/DCO/{}_{}".format(dataset, num_aggs),'embedding-{}-{}-{}-{}.npy'.format(dataset, k, epoch, added_info))
+    else:
+        filename = os.path.join('embeddings', dirname,"b_otc/DO/{}_{}".format(dataset, num_aggs),'embedding-{}-{}-{}.npy'.format(dataset, k, epoch))
+    print(filename)
     embeddings = np.load(filename)
     pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score = common_logistic(dataset, k, embeddings, RESULT_DIR, 'sigat')
     return pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score
@@ -339,16 +354,13 @@ def logistic_embedding(k=1, dataset='bitcoin_otc', epoch = 10, dirname='sgae'):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--added_info', default = None, type=str)
+    parser.add_argument('--added_info',  type=str)
     parser.add_argument('--RESULTS_DIR', type=str)
     parser.add_argument('--dataset', type=str)
+    parser.add_argument('--num_aggs', type=int)
 
     args = parser.parse_args()
-    
-    pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score = logistic_embedding9(args.RESULTS_DIR, added_info = args.added_info, k=1, dataset=args.dataset, epoch=100, dirname='sigat')
-
-        
-
+    pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score = logistic_embedding9(args.RESULTS_DIR, num_aggs= args.num_aggs, added_info = args.added_info, k=1, dataset=args.dataset, epoch=100, dirname='sigat')
 
 if __name__ == "__main__":
     main()
