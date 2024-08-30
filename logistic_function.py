@@ -335,9 +335,9 @@ def logistic_embedding9(RESULT_DIR, num_aggs, added_info, k=1, dataset='epinions
     if added_info:
         print(added_info)
         ## you gotta change b_otc manually
-        filename = os.path.join('embeddings', dirname,"b_otc/DCO/{}_{}".format(dataset, num_aggs),'embedding-{}-{}-{}-{}.npy'.format(dataset, k, epoch, added_info))
+        filename = os.path.join('embeddings', dirname,"{}/DCO/{}_{}".format(dataset, dataset, num_aggs),'embedding-{}-{}-{}-{}.npy'.format(dataset, k, epoch, added_info))
     else:
-        filename = os.path.join('embeddings', dirname,"b_otc/DO/{}_{}".format(dataset, num_aggs),'embedding-{}-{}-{}.npy'.format(dataset, k, epoch))
+        filename = os.path.join('embeddings', dirname,"{}/DO/{}_{}".format(dataset, dataset, num_aggs),'embedding-{}-{}-{}.npy'.format(dataset, k, epoch))
     print(filename)
     embeddings = np.load(filename)
     pos_ratio, accuracy, f1_score0, f1_score1, f1_score2, auc_score = common_logistic(dataset, k, embeddings, RESULT_DIR, 'sigat')
