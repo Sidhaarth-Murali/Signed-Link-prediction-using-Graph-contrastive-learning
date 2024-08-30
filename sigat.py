@@ -54,7 +54,7 @@ BATCH_SIZE = args.batch_size
 EPOCHS = args.epochs
 DROUPOUT = args.dropout
 K = args.k
-print(DEVICES)
+print(torch.cuda.get_device_name())
 
 
 
