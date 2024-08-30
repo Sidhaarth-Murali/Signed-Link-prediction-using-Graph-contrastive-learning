@@ -5,6 +5,7 @@ import random
 import subprocess
 from collections import defaultdict
 import argparse
+from tqdm import tqdm
 
 import numpy as np
 import scipy.sparse as sp
@@ -412,19 +413,25 @@ def run( added_info, dataset, k=2):
 
         time1 = time.time()
         nodes_pku = np.random.permutation(NUM_NODE).tolist()
-        for batch in range(NUM_NODE // BATCH_SIZE):
-            optimizer.zero_grad()
-            b_index = batch * BATCH_SIZE
-            e_index = (batch + 1) * BATCH_SIZE
-            nodes = nodes_pku[b_index:e_index]
+        with tqdm(total=NUM_NODE // BATCH_SIZE, desc=f"Epoch {epoch}/{EPOCHS}") as pbar:
+            for batch in range(NUM_NODE // BATCH_SIZE):
+                optimizer.zero_grad()
+                b_index = batch * BATCH_SIZE
+                e_index = (batch + 1) * BATCH_SIZE
+                nodes = nodes_pku[b_index:e_index]
 
-            loss = model.criterion(
-                nodes, adj_lists1, adj_lists2
-            )
-            total_loss.append(loss.data.cpu().numpy())
+                loss = model.criterion(
+                    nodes, adj_lists1, adj_lists2
+                )
+                total_loss.append(loss.data.cpu().numpy())
 
-            loss.backward()
-            optimizer.step()
+                loss.backward()
+                optimizer.step()
+                
+                # Update the progress bar
+                pbar.set_postfix({"loss": np.sum(total_loss)})
+                pbar.update(1)
+        
         print(f'epoch: {epoch}, loss: {np.sum(total_loss)}, time: {time.time()-time1}')
 
 
